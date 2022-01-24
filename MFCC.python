@@ -1,0 +1,63 @@
+import os
+import librosa, librosa.display
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+import json
+import pandas as pd
+import scipy.io.wavfile as wavf
+from IPython.display import Audio
+
+#file  = "dataset_test/Ses01F_impro01.wav"
+dataset_path = "dataset_temp/"
+json_path = "mfccs.json"
+SAMPLE_RATE = 22050
+n_mfcc=13
+n_fft=2048
+hop_length=512
+num_seg=5
+
+data = {
+    "mapping":[],
+    "mfcc":[],
+    "labels":[]
+}
+
+
+for i, (dirpath,dirnames,filenames) in enumerate(os.walk(dataset_path)):
+
+    if dirpath is not dataset_path:
+        dirpath_comp = dirpath.split("/")
+        semantic_label = dirpath_comp[-1]
+        print(semantic_label)
+        data["mapping"].append(semantic_label)
+        print("\nProcessing {}".format(semantic_label))
+
+        #x is expected no of vectors per segment
+        for f in filenames:
+            print(f)
+            file_path = os.path.join(dirpath,f)
+            signal,sr = librosa.load(file_path,sr = SAMPLE_RATE)
+            #print(librosa.get_duration(signal))
+            num_sample_per_seg = int((sr*librosa.get_duration(signal)) / num_seg)
+            #print(num_sample_per_seg
+            no = num_sample_per_seg / hop_length
+            x = math.ceil(no)
+
+            for s in range(num_seg):
+                start_sample = num_sample_per_seg * s
+                end_sample = start_sample + num_sample_per_seg
+
+                mfcc = librosa.feature.mfcc(signal[start_sample:end_sample],sr=sr,n_fft = n_fft,n_mfcc=n_mfcc,hop_length = hop_length)
+                mfcc = mfcc.T
+                mean = np.mean(mfcc, axis=0)
+                std = np.std(mfcc, axis=0)
+                nmfcc = (mfcc - mean)/std
+
+                if len(nmfcc) == x:
+                    data["mfcc"].append(nmfcc.tolist())
+                    data["labels"].append(i-1)
+                    print("{}, segment:{}".format(file_path,s+1))
+
+with open(json_path,"w") as f:
+    json.dump(data,f,indent=4)
