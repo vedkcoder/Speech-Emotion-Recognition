@@ -1,0 +1,59 @@
+import pandas as pd
+import json
+import numpy as np
+import tensorflow.keras as keras
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+dataset_path = "mfccs.json"
+
+with open(dataset_path,"r") as f:
+    data = json.load(f)
+    
+inputs = [np.array(mfcc) for mfcc in data['mfcc']]
+#inputs = np.array(data['mfcc'])
+targets = np.asarray(data['labels'])
+
+x_train,x_test,y_train,y_test = train_test_split(inputs,targets,test_size=0.3)
+
+x_train = tf.keras.preprocessing.sequence.pad_sequences(
+    x_train, padding="post"
+)
+x_test = tf.keras.preprocessing.sequence.pad_sequences(
+    x_test, padding="post"
+)
+
+x_train.shape
+
+model = keras.Sequential()
+
+model.add(keras.layers.Masking(mask_value=0,input_shape=(None, 13)))
+model.add(keras.layers.LSTM(128,input_shape=(None,13),return_sequences='True'))
+model.add(keras.layers.LSTM(64))
+
+model.add(keras.layers.Dense(64,activation='relu'))
+model.add(keras.layers.Dropout(0.3))
+model.add(keras.layers.Dense(7,activation='softmax'))
+
+optimizer = keras.optimizers.Adam(learning_rate=0.0001)
+model.compile(optimizer=optimizer,loss='sparse_categorical_crossentropy',metrics=['accuracy'])
+model.summary()
+history = model.fit(x_train,y_train,validation_data=(x_test,y_test),epochs=100,batch_size=32)
+
+# summarize history for accuracy
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+# summarize history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
